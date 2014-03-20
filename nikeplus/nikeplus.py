@@ -36,7 +36,7 @@ class NikePlus:
 				'gps_data' : 			nikeplus_base_url+'/me/sport/activities/%(activity_id)s/gps',
 				'login' :			nikeplus_base_url+'/nsl/v2.0/user/login'}
 	
-	nikeplus_activity_list_limit = 250 #API shits itself if we set this too high
+	nikeplus_activity_list_limit = 50 #API shits itself if we set this too high
 	nikeplus_timeout_seconds = 30
 
 	def __init__(self):
