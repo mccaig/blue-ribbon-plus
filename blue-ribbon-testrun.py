@@ -1,7 +1,6 @@
 #!/usr/bin/python
 #By Rhys McCaig @mccaig / mccaig@gmail.com
 
-
 import nikeplus
 import logging
 import sys
