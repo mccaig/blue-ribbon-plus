@@ -19,23 +19,23 @@ class NikePlus:
 	nikeplus_app_id = 'ONEPLUSSDKSAMPLE'
 	nikeplus_client_id = 'c002b5e3fd045be3bf357c8534edb38b'
 	nikeplus_client_secret =  'd7c94a86a6a389c4'
-	
+
 	#Probably shouldnt touch anything below here, unless something drastically changes
 	nikeplus_base_url = 'https://api.nike.com'
-	
+
 	nikeplus_headers = {	'Appid' : nikeplus_app_id,
 				'Accept' : 'application/json'}
-	
+
 	nikeplus_authentication_parameters = {'app' : nikeplus_app_id,
 				'client_id' : nikeplus_client_id,
 				'client_secret' : nikeplus_client_secret}
-	
+
 	nikeplus_endpoints = {	'aggregate_sports_data' : 	nikeplus_base_url+'/me/sport',
 				'list_activities' : 	  	nikeplus_base_url+'/me/sport/activities',
 				'activity_detail' :		nikeplus_base_url+'/me/sport/activities/%(activity_id)s',
 				'gps_data' : 			nikeplus_base_url+'/me/sport/activities/%(activity_id)s/gps',
 				'login' :			nikeplus_base_url+'/nsl/v2.0/user/login'}
-	
+
 	nikeplus_activity_list_limit = 50 #API shits itself if we set this too high
 	nikeplus_timeout_seconds = 30
 
@@ -64,8 +64,8 @@ class NikePlus:
 		r = self.session.post(self.nikeplus_endpoints['login'], data=authentication_payload, params=self.nikeplus_authentication_parameters, headers=self.nikeplus_headers,timeout=self.nikeplus_timeout_seconds)
 		self.logger.debug("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Request: "+str([r.url,r.request.headers])))
 		self.logger.debug("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Response: "+str([r.headers,r.text])))
-		try:	
-			self.authentication_data = r.json()
+		try:
+			self.authentication_data = get_json_auth_data(r)
 			self.logger.debug("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Setting Token: "+str(self.authentication_data['access_token'])))
 			self.token = self.authentication_data['access_token']
 		except:
@@ -103,7 +103,7 @@ class NikePlus:
 		if self.token is None:
 			self.logger.error("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="No Auth Token set"))
 			raise NikePlusError("No Auth Token - Try to Authenticate() or manually set a NikePlus.token first")
-		else:	
+		else:
 			while (len(activities)<limit and not eof):
 				parameters = {'access_token':self.token,'count':count,'offset':offset}
 				r = self.session.get(self.nikeplus_endpoints['list_activities'], params=parameters, headers=self.nikeplus_headers,timeout=self.nikeplus_timeout_seconds)
@@ -117,7 +117,7 @@ class NikePlus:
 							if len(activities)<limit:
 								activities[str(a['activityId'])] = a #so we can search by activityId
 								activities[str(a['activityId'])]['gps'] = None
-						if len(data['data']) == 0 or len(activities) % count != 0: 
+						if len(data['data']) == 0 or len(activities) % count != 0:
 							eof = True
 					else:
 						eof = True
@@ -128,7 +128,7 @@ class NikePlus:
 		self.activities = activities
 		self.logger.info("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Retreived a total of {c} activities".format(c=len(self.activities))))
 		return self
-	
+
 	#Downloads details for an individual Activity
 	def GetActivityDetails(self,activity_id):
 		if self.token is None:
@@ -148,7 +148,7 @@ class NikePlus:
 					self.logger.warn("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Error getting detail for activity id {a}".format(a=activity_id)))
 				else:
 					npa.AddDetail(r.json())
-					self.activities[str(activity_id)]['detail'] = True	
+					self.activities[str(activity_id)]['detail'] = True
 					self.logger.info("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Retrieved detail for activity id {a}".format(a=activity_id)))
 			except:
 				self.logger.error("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Failure to attach detail to activity id {a}. Error {e}".format(a=activity_id, e=str(sys.exc_info()[0]))))
@@ -163,7 +163,7 @@ class NikePlus:
 				#Attach the detail to the existing activity
 				if "errorCode" in r.json().keys():
 					self.activities[str(activity_id)]['gps'] = False
-					self.logger.info("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="No GPS data available for activity id {a}".format(a=activity_id)))	
+					self.logger.info("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="No GPS data available for activity id {a}".format(a=activity_id)))
 				else:
 					self.activities[str(activity_id)]['gps'] = True
 					self.logger.info("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Retrieved GPS data for activity id {a}".format(a=activity_id)))
@@ -174,7 +174,7 @@ class NikePlus:
 				raise
 		return npa
 
-	#Download the details for all activities 
+	#Download the details for all activities
 	def GetBulkActivityDetails(self):
 		self.logger.debug("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Retrieving list of activities"))
 		npaList = []
@@ -199,7 +199,7 @@ class NikePlus:
 			if len(self.activities) == 0:
 				self.logger.error("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="No activities for this account"))
 				raise NikePlusError("There are no activities for this account")
-		if activity_id not in self.activities.keys():	
+		if activity_id not in self.activities.keys():
 			self.logger.error("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Activity ID {a} not found on this account".format(a=activity_id)))
 			raise NikePlusError("Activity ID {a} not found!".format(a=activity_id))
 		return self.activities[activity_id]
@@ -210,7 +210,7 @@ class NikePlusActivity:
 	"""Class for working with a single nikeplus activity data set"""
 
 	nikeplus_interpolatable_metrics = ['DISTANCE','SMOOTHED_DISTANCE']
-	
+
 	def __init__(self, a_id=None):
 		self.logger = logging.getLogger('nikeplus.NikePlusActivity')
 		self.id = id(self)
@@ -226,7 +226,7 @@ class NikePlusActivity:
 		self.distance_smoothing_window = 1
 		self.start_datetime = None
 		return
-	
+
 	#No Validation for now - we just blindly add whatever data elements that are passed
 	def AddDetail(self,d={}):
 		try:
@@ -256,7 +256,7 @@ class NikePlusActivity:
 		except:
 			self.logger.error("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Error adding gps to Activity ID {a}".format(a=self.activity_id)))
 			self.logger.debug("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Error {e}, GPS Data: {data}".format(e=sys.exc_info()[0],data=g)))
-			raise	
+			raise
 		self.logger.info("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Added gps for activity id {a}".format(a=self.activity_id)))
 		self.gps = True
 		return self
@@ -272,7 +272,7 @@ class NikePlusActivity:
 					time = 0
 					for d in m['values']:
 						self.data['timeSeries'].setdefault(int(time), {})[m['metricType']] = d #really just self.data['timeSeries']['metric'] = d with setdefault
-						time += m['intervalMetric'] * 1000	
+						time += m['intervalMetric'] * 1000
 				else:
 					self.logger.warn("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Dont know how to handle metric ({metric}) with intervalUnit: ({i}) for activity id {a}".format(a=activity_id,i=m['intervalUnit'],metric=m['metricType'])))
 			#Add final time and distance
@@ -311,11 +311,11 @@ class NikePlusActivity:
 			if metric in self.data['timeSeries'][k]:
 				d[k] = self.data['timeSeries'][k][metric]
 		return d
-	
-	#Return a copy of the summary data	
+
+	#Return a copy of the summary data
 	def GetMetricSummary(self):
 		return self.data['metricSummary'].copy()
-		
+
 	#Returns true if the specified metric is available
 	def HasMetric(self,metric):
 		for m in self.data['metrics']:
@@ -337,7 +337,7 @@ class NikePlusActivity:
 										'intervalUnit': m['intervalUnit'],
 										'values': smoothed
 										})
-				self.logger.info("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Added SMOOTHED_DISTANCE metric for activity id {a}".format(a=self.activity_id)))		
+				self.logger.info("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Added SMOOTHED_DISTANCE metric for activity id {a}".format(a=self.activity_id)))
 			else:
 				self.logger.warn("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Activity {a} has no distance metric!".format(a=self.activity_id)))
 		except: #What could possibly go wrong?
@@ -370,8 +370,8 @@ class NikePlusActivity:
 			self.distance_smoothing_window = 1
 		self.logger.info("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Set a smoothing window of {w} for activity id {a}".format(w=self.distance_smoothing_window,a=self.activity_id)))
 		return self
-	
-	#Some tools fall over if there isnt a distance supplied in every TCX entry. So we need to interpolate the distance if our other metrics have a different interval to Distance	
+
+	#Some tools fall over if there isnt a distance supplied in every TCX entry. So we need to interpolate the distance if our other metrics have a different interval to Distance
 	#Note we use floats here as required by numpy
 	def _Interpolate(self):
 		try:
@@ -392,14 +392,14 @@ class NikePlusActivity:
 			self.logger.debug("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Something went horribly wrong during interpolation for activity id {a}".format(a=self.activity_id)))
 			raise
 		self.logger.info("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Interpolation Success for activity id {a}".format(a=self.activity_id)))
-		return self		
-	
+		return self
+
 	#Spitting out our data as JSON is pretty easy, especially if we dont want to do any special formatting.
 	def AsJSON(self):
 		self.logger.info("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="JSON export for activity id {a}".format(a=self.activity_id)))
 		json_out = json.dumps(self.data,sort_keys=True,indent=2,separators=(',', ': '))
 		return json_out
-	
+
 	#Generate GPX file
 	def AsGPX(self):
 		try:
@@ -414,7 +414,7 @@ class NikePlusActivity:
 			GPXtrk = ET.SubElement(GPX,'trk')
 			ET.SubElement(GPXtrk,'name').text = str(self.start_time)
 			GPXtrkseg = ET.SubElement(GPXtrk,'trkseg')
-			for i in self.GetTimeSeries():	
+			for i in self.GetTimeSeries():
 				time_slice = self.data['timeSeries'][i]
 				if "WAYPOINT" in time_slice: #We need a waypoint for a record
 					GPXtrkpt = ET.SubElement(GPXtrkseg,'trkpt')
@@ -463,9 +463,9 @@ class NikePlusActivity:
 					ET.SubElement(TCXPosition,'LongitudeDegrees').text = str(time_slice["WAYPOINT"]['longitude'])
 					ET.SubElement(TCXTrackpoint,'AltitudeMeters').text = str(time_slice["WAYPOINT"]['elevation'])
 				if "SMOOTHED_DISTANCE" in time_slice:
-					ET.SubElement(TCXTrackpoint,'DistanceMeters').text = str(float(time_slice["SMOOTHED_DISTANCE"]) * 1000) #Kilometres to Metres	
+					ET.SubElement(TCXTrackpoint,'DistanceMeters').text = str(float(time_slice["SMOOTHED_DISTANCE"]) * 1000) #Kilometres to Metres
 				if "HEARTRATE" in time_slice:
-					TCXHeartRate = ET.SubElement(TCXTrackpoint,'HeartRateBpm') 
+					TCXHeartRate = ET.SubElement(TCXTrackpoint,'HeartRateBpm')
 					TCXHeartRate.set("xsi:type","HeartRateInBeatsPerMinute_t")
 					ET.SubElement(TCXHeartRate,'Value').text = str(time_slice["HEARTRATE"])
 				TCXExtensions = ET.SubElement(TCXTrackpoint,'Extensions')
@@ -477,7 +477,7 @@ class NikePlusActivity:
 						ET.SubElement(TCXTPX,'Speed').text = str(float(time_slice["SPEED"])/3.6) #Convert from Nike+ KPH to M/S
 					if "CADENCE" in time_slice:
 						#Garmin Cadence is times one foot hits the ground, nike+ cadence is in steps, so we need to divide by 2.
-						ET.SubElement(TCXTPX,'RunCadence').text = str(int(float(time_slice["CADENCE"])/2)) 
+						ET.SubElement(TCXTPX,'RunCadence').text = str(int(float(time_slice["CADENCE"])/2))
 				else:
 					TCXExtensions.text = "\n"
 			tcx_out = '<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n' + ET.tostring(TCX)
@@ -490,25 +490,25 @@ class NikePlusActivity:
 	#TODO: Generate Mock GPS data for runs without any location info.
 	def AddMockGPSData(self):
 		pass
-	
+
 	#Map to the garmin defined sports in GPX/TCX files. If this is enhanced in the future should make it a lookup rather than hardcoding
 	def _GetGarminSport(self):
 		if self.activity_type == "RUN":
 			self.logger.info("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Detected 'garmin' sport for activity id {a} [{t}=Running]".format(a=self.activity_id,t=self.activity_type)))
 			return "Running"
-		
+
 		#elif False: #May run other mappings later (Cycling?)
 			#return self.activity_type
 		else:
 			self.logger.info ("[{i}] {f}({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Failed to detect 'garmin' sport for activity id {a} ({t})".format(a=self.activity_id,t=self.activity_type)))
 			return self.activity_type
 
-	
+
 
 
 class NikePlusError(Exception):
 	pass
-		
+
 
 
 def timestring_to_milliseconds(s):
@@ -531,11 +531,23 @@ def smooth_array(a,window_len=11,window='flat'):
         s=numpy.r_[2*x[0]-x[window_len-1::-1],x,2*x[-1]-x[-1:-window_len:-1]]
         if window == 'flat': #moving average
                 w=numpy.ones(window_len,'d')
-        else:  
+        else:
                 w=eval('numpy.'+window+'(window_len)')
         y=numpy.convolve(w/w.sum(),s,mode='same')
         return y[window_len:-window_len+1].tolist()
 
-
-
-
+#Fix for nike+ sometimes returning non JSON data when their XML/JSON conversion fails
+def get_json_auth_data(resp):
+	valid_strings = ['access_token','refresh_token','expires_in']
+	try:
+		a = r.json()
+	#If we got bad json back.... Either the user didnt log in or nike screwed up the XML to JSON conversions
+	except:
+		t = "{\n"
+		for line in resp.iter_lines():
+			for string in valid_strings:
+				if string in line:
+					t = t + line.strip() + "\n"
+		t = t + '"failed_json_parse":"true"\n}'
+		a = json.loads(t)
+	return a
