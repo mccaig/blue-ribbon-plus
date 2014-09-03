@@ -7,9 +7,11 @@ import logging
 import re
 from datetime import datetime, timedelta
 import xml.etree.ElementTree as ET
+import thread
 
 import numpy
 import requests
+
 
 class NikePlus:
 	"""Class for working with the Nike+ API"""
@@ -97,7 +99,7 @@ class NikePlus:
 	#Retrieve activity list/summaries
 	def RetrieveActivities(self,limit=100000,offset=1):
 		count = self.nikeplus_activity_list_limit #Nike+ API shits itself if you try to request more than 500 or so, keeping this relatively low to be safe. We have to page through results.
-		self.logger.info("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Retrieving activities in batches of {c}".format(c=count)))
+		self.logger.info("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Retrieving activities in batches of {c}".format(c=count)))
 		activities = {}
 		eof = False
 		if self.token is None:
@@ -107,12 +109,12 @@ class NikePlus:
 			while (len(activities)<limit and not eof):
 				parameters = {'access_token':self.token,'count':count,'offset':offset}
 				r = self.session.get(self.nikeplus_endpoints['list_activities'], params=parameters, headers=self.nikeplus_headers,timeout=self.nikeplus_timeout_seconds)
-				self.logger.debug("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Request: "+str([r.url,r.request.headers])))
-				self.logger.debug("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Response: "+str([r.headers,r.text])))
+				self.logger.debug("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Request: "+str([r.url,r.request.headers])))
+				self.logger.debug("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Response: "+str([r.headers,r.text])))
 				try:
 					data = r.json()
 					if "data" in data:
-						self.logger.debug("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Retreived {c} activities".format(c=len(data['data']))))
+						self.logger.debug("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Retreived {c} activities".format(c=len(data['data']))))
 						for a in data['data']:
 							if len(activities)<limit:
 								activities[str(a['activityId'])] = a #so we can search by activityId
@@ -123,60 +125,63 @@ class NikePlus:
 						eof = True
 					offset += count
 				except:
-					self.logger.error("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m=r.url+" "+str(sys.exc_info()[0])))
+					self.logger.error("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m=r.url+" "+str(sys.exc_info()[0])))
 					raise
 		self.activities = activities
-		self.logger.info("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Retreived a total of {c} activities".format(c=len(self.activities))))
+		self.logger.info("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Retreived a total of {c} activities".format(c=len(self.activities))))
 		return self
 
 	#Downloads details for an individual Activity
 	def GetActivityDetails(self,activity_id):
 		if self.token is None:
-			self.logger.error("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="No Auth Token set"))
+			self.logger.error("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="No Auth Token set"))
 			raise NikePlusError("No Auth Token - Try to Authenticate() or manually set a NikePlus.token first")
 		else:
 			self.activities.setdefault(str(activity_id),{})	#If not being invoked after a RetrieveActivities, (if manually setting the activity_id) activity_id wont yet be set
 			parameters = {'access_token':self.token,'activityId':activity_id}
 			#Note we have to replace activityID into the endpoint in the below code
+
+			self.logger.info("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Request: "+ self.nikeplus_endpoints['activity_detail'] % {'activity_id' : activity_id}))
 			r = self.session.get(self.nikeplus_endpoints['activity_detail'] % {'activity_id' : activity_id}, params=parameters, headers=self.nikeplus_headers,timeout=self.nikeplus_timeout_seconds)
-			self.logger.debug("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Request: "+str([r.url,r.request.headers])))
-			self.logger.debug("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Response: "+str([r.headers,r.text])))
+			self.logger.info("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Response: "+ self.nikeplus_endpoints['activity_detail'] % {'activity_id' : activity_id}))
+			self.logger.debug("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Request: "+str([r.url,r.request.headers])))
+			self.logger.debug("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Response: "+str([r.headers,r.text])))
 			npa = NikePlusActivity(activity_id)
 			try:
 				#Attach the detail to the existing activity
-				if "errorCode" in r.json().keys():
-					self.logger.warn("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Error getting detail for activity id {a}".format(a=activity_id)))
+				if "errorCode" in r.json().keys() or "error_id" in r.json().keys():
+					self.logger.warn("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Error getting detail for activity id {a}".format(a=activity_id)))
 				else:
 					npa.AddDetail(r.json())
 					self.activities[str(activity_id)]['detail'] = True
-					self.logger.info("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Retrieved detail for activity id {a}".format(a=activity_id)))
+					self.logger.info("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Retrieved detail for activity id {a}".format(a=activity_id)))
 			except:
-				self.logger.error("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Failure to attach detail to activity id {a}. Error {e}".format(a=activity_id, e=str(sys.exc_info()[0]))))
+				self.logger.error("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Failure to attach detail to activity id {a}. Error {e}".format(a=activity_id, e=str(sys.exc_info()[0]))))
 				raise
 			#Now to retrieve GPS (if there is any)
 			parameters = {'access_token':self.token,'activityId':activity_id}
 			#Note we have to replace activityID into the endpoint in the below code
 			r = self.session.get(self.nikeplus_endpoints['gps_data'] % {'activity_id' : activity_id}, params=parameters, headers=self.nikeplus_headers,timeout=self.nikeplus_timeout_seconds)
-			self.logger.debug("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Request: "+str([r.url,r.request.headers])))
-			self.logger.debug("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Response: "+str([r.headers,r.text])))
+			self.logger.debug("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Request: "+str([r.url,r.request.headers])))
+			self.logger.debug("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Response: "+str([r.headers,r.text])))
 			try:
 				#Attach the detail to the existing activity
-				if "errorCode" in r.json().keys():
+				if "errorCode" in r.json().keys() or "error_id" in r.json().keys():
 					self.activities[str(activity_id)]['gps'] = False
-					self.logger.info("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="No GPS data available for activity id {a}".format(a=activity_id)))
+					self.logger.info("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="No GPS data available for activity id {a}".format(a=activity_id)))
 				else:
 					self.activities[str(activity_id)]['gps'] = True
-					self.logger.info("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Retrieved GPS data for activity id {a}".format(a=activity_id)))
+					self.logger.info("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Retrieving GPS data for activity id {a}".format(a=activity_id)))
 					npa.AddGPS(r.json())
 				npa.gps = self.activities[str(activity_id)]['gps']
 			except:
-				self.logger.error("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Failure to attach detail to activity " + r.url+" "+str(sys.exc_info()[0])))
+				self.logger.error("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Failure to attach detail to activity " + r.url+" "+str(sys.exc_info()[0])))
 				raise
 		return npa
 
 	#Download the details for all activities
 	def GetBulkActivityDetails(self):
-		self.logger.debug("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Retrieving list of activities"))
+		self.logger.debug("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Retrieving list of activities"))
 		npaList = []
 		for a in self.GetActivityIds():
 			npalist.append(self.RetrieveActivityDetails(a))
@@ -187,9 +192,9 @@ class NikePlus:
 		if len(self.activities) == 0:
 			self.RetrieveActivities()
 			if len(self.activities) == 0:
-				self.logger.error("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="No activities for this account"))
+				self.logger.error("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="No activities for this account"))
 				raise NikePlusError("There are no activities for this account")
-		self.logger.debug("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m=str(self.activities.keys())))
+		self.logger.debug("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m=str(self.activities.keys())))
 		return self.activities.keys()
 
 	#Return the sumary data for an individual activity
@@ -197,10 +202,10 @@ class NikePlus:
 		if len(self.activities) == 0:
 			self.RetrieveActivities()
 			if len(self.activities) == 0:
-				self.logger.error("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="No activities for this account"))
+				self.logger.error("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="No activities for this account"))
 				raise NikePlusError("There are no activities for this account")
 		if activity_id not in self.activities.keys():
-			self.logger.error("[{i}] {f} ({m})".format(i=self.id, f=str(sys._getframe().f_code.co_name), m="Activity ID {a} not found on this account".format(a=activity_id)))
+			self.logger.error("[{i}] [{t}] [{f}] ({m})".format(i=self.id, t=thread.get_ident(), f=str(sys._getframe().f_code.co_name), m="Activity ID {a} not found on this account".format(a=activity_id)))
 			raise NikePlusError("Activity ID {a} not found!".format(a=activity_id))
 		return self.activities[activity_id]
 
