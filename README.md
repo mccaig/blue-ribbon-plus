@@ -1,7 +1,7 @@
-blue-ribbon-plus
+blue-ribbon-plus (deprecated)
 ================
 
-Python library for retrieving data from nike+
+Python library for retrieving data from nike+. Deprecated as of March 2016.
 
 Data can be converted to JSON, GPX or TCX formats.
 
